@@ -1,0 +1,10 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Healthcheck
+GET     /v1/echo/health                        io.sequences.echo.controllers.Application.healthHandler()
+GET     /v1/echo/readystatus                   io.sequences.echo.controllers.Application.readyStatusHandler()
+
+# Normalize text
+POST    /v1/echo/text                          io.sequences.echo.controllers.Application.echoHandler()

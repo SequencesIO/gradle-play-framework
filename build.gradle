@@ -1,0 +1,144 @@
+plugins {
+
+    id 'play'
+}
+
+repositories {
+
+    jcenter()
+    maven {
+        name "lightbend-maven-release"
+        url "https://repo.lightbend.com/lightbend/maven-releases"
+    }
+    ivy {
+        name "lightbend-ivy-release"
+        url "https://repo.lightbend.com/lightbend/ivy-releases"
+        layout "ivy"
+    }
+}
+
+apply plugin: 'jacoco'
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+import java.nio.file.Paths
+
+File exportFolder = Paths.get(rootProject.projectDir.absolutePath, "build", "export").toFile()
+
+dependencies {
+
+    play 'com.typesafe.play:play-ehcache_2.12:2.6.13'
+    play 'com.typesafe.play:play-guice_2.12:2.6.13'
+}
+
+model {
+
+    components {
+
+        play {
+
+            targetPlatform 'play-2.6.13'
+        }
+    }
+
+    tasks {
+
+        exportDistribution(Copy) {
+
+            from $.tasks.dist
+            from $.tasks.createPlayBinaryTarDist
+            into exportFolder
+        }
+
+        playCoverageReport(JacocoReport) {
+
+            executionData $.tasks.testPlayBinary
+            classDirectories = fileTree(dir: "build/playBinary/classes", exclude: ["**/ReverseApplication*", "**/routes*"])
+            sourceDirectories = files("app")
+        }
+    }
+}
+
+model {
+
+    components {
+
+        play {
+
+            injectedRoutesGenerator = true
+        }
+    }
+}
+
+tasks.withType(Test) { task ->
+
+    jacoco {
+
+        append = false
+        destinationFile = file("$buildDir/jacoco/jacocoTest.exec")
+        classDumpDir = file("$buildDir/jacoco/classpathdumps")
+        excludes = ["**/ReverseApplication*", "**/routes*"]
+    }
+}
+
+// Check for debug value
+def debug = false
+try {
+
+    debug = Boolean.valueOf(debugPlay)
+} catch (Exception error) {}
+
+tasks.withType(Task) { task ->
+
+    if (debug) {
+
+        if (task instanceof PlayRun) {
+
+            println "Add debug options to run play"
+            task.forkOptions.jvmArgs = ['-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=9999']
+        }
+    }
+}
+
+jacoco {
+
+    toolVersion = "0.7.6.201602180812"
+    reportsDir = file("$buildDir/reports/jacoco")
+}
+
+eclipse {
+
+    classpath {
+
+        plusConfigurations += [ configurations.play, configurations.playTest ]
+        downloadSources = true
+
+        file {
+
+            withXml {
+
+                def sourceFolderList = []
+                def projectDirPath = Paths.get(projectDir.absolutePath)
+                projectDir.eachFileRecurse { fileObj ->
+
+                    if (fileObj.name.endsWith(".java") || fileObj.name.endsWith(".scala")) {
+
+                        def containingFolder = Paths.get(fileObj.parent)
+                        def relativePath = projectDirPath.relativize(containingFolder)
+                        def savePath = relativePath.getName(0).toString()
+                        if (!sourceFolderList.contains(savePath)) {
+
+                            sourceFolderList << savePath
+                        }
+                    }
+                }
+
+                def node = it.asNode()
+                sourceFolderList.each { sourceFolder ->
+
+                    node.appendNode("classpathentry", [kind: "src", path: sourceFolder])
+                }
+            }
+        }
+    }
+}
