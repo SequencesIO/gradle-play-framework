@@ -3,6 +3,10 @@ plugins {
     id 'play'
 }
 
+apply plugin: 'jacoco'
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
 repositories {
 
     jcenter()
@@ -16,10 +20,6 @@ repositories {
         layout "ivy"
     }
 }
-
-apply plugin: 'jacoco'
-apply plugin: 'java'
-apply plugin: 'eclipse'
 
 import java.nio.file.Paths
 
@@ -38,6 +38,7 @@ model {
         play {
 
             targetPlatform 'play-2.6.13'
+            injectedRoutesGenerator = true
         }
     }
 
@@ -53,19 +54,10 @@ model {
         playCoverageReport(JacocoReport) {
 
             executionData $.tasks.testPlayBinary
-            classDirectories = fileTree(dir: "build/playBinary/classes", exclude: ["**/ReverseApplication*", "**/routes*"])
+            classDirectories = fileTree(
+                dir: "build/playBinary/classes",
+                exclude: ["**/ReverseApplication*", "**/Routes*", "**/routes*"])
             sourceDirectories = files("app")
-        }
-    }
-}
-
-model {
-
-    components {
-
-        play {
-
-            injectedRoutesGenerator = true
         }
     }
 }
@@ -77,8 +69,13 @@ tasks.withType(Test) { task ->
         append = false
         destinationFile = file("$buildDir/jacoco/jacocoTest.exec")
         classDumpDir = file("$buildDir/jacoco/classpathdumps")
-        excludes = ["**/ReverseApplication*", "**/routes*"]
     }
+}
+
+jacoco {
+
+    toolVersion = "0.8.1"
+    reportsDir = file("$buildDir/reports/jacoco")
 }
 
 // Check for debug value
@@ -98,12 +95,6 @@ tasks.withType(Task) { task ->
             task.forkOptions.jvmArgs = ['-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=9999']
         }
     }
-}
-
-jacoco {
-
-    toolVersion = "0.7.6.201602180812"
-    reportsDir = file("$buildDir/reports/jacoco")
 }
 
 eclipse {
